@@ -126,6 +126,120 @@ export const walletQueries = {
       [serverId, id],
     );
   },
+
+  async getByServerId(serverId: string): Promise<Wallet | null> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<WalletRow>(
+      "SELECT * FROM wallets WHERE server_id = ?",
+      [serverId],
+    );
+    return row ? mapWalletRowToWallet(row) : null;
+  },
+
+  async upsertFromServer(serverWallet: {
+    id: string;
+    client_id: string | null;
+    name: string;
+    currency: string;
+    balance: number;
+    icon: string;
+    color: string;
+    is_active: boolean;
+    updated_at: string;
+  }): Promise<Wallet> {
+    const db = await getDatabase();
+
+    if (serverWallet.client_id) {
+      const existingByClientId = await this.getById(serverWallet.client_id);
+      if (existingByClientId) {
+        await db.runAsync(
+          `UPDATE wallets SET server_id = ?, name = ?, currency = ?, balance = ?, icon = ?, color = ?, is_active = ?, pending_sync = 0, updated_at = ? WHERE id = ?`,
+          [
+            serverWallet.id,
+            serverWallet.name,
+            serverWallet.currency,
+            serverWallet.balance,
+            serverWallet.icon,
+            serverWallet.color,
+            serverWallet.is_active ? 1 : 0,
+            serverWallet.updated_at,
+            serverWallet.client_id,
+          ],
+        );
+        return {
+          id: serverWallet.client_id,
+          serverId: serverWallet.id,
+          name: serverWallet.name,
+          currency: serverWallet.currency as Wallet['currency'],
+          balance: serverWallet.balance,
+          icon: serverWallet.icon,
+          color: serverWallet.color,
+          isActive: serverWallet.is_active,
+          pendingSync: false,
+          updatedAt: serverWallet.updated_at,
+        };
+      }
+    }
+
+    const existing = await this.getByServerId(serverWallet.id);
+    if (existing) {
+      await db.runAsync(
+        `UPDATE wallets SET name = ?, currency = ?, balance = ?, icon = ?, color = ?, is_active = ?, pending_sync = 0, updated_at = ? WHERE server_id = ?`,
+        [
+          serverWallet.name,
+          serverWallet.currency,
+          serverWallet.balance,
+          serverWallet.icon,
+          serverWallet.color,
+          serverWallet.is_active ? 1 : 0,
+          serverWallet.updated_at,
+          serverWallet.id,
+        ],
+      );
+      return {
+        ...existing,
+        name: serverWallet.name,
+        currency: serverWallet.currency as Wallet['currency'],
+        balance: serverWallet.balance,
+        icon: serverWallet.icon,
+        color: serverWallet.color,
+        isActive: serverWallet.is_active,
+        pendingSync: false,
+        updatedAt: serverWallet.updated_at,
+      };
+    }
+
+    const id = generateId();
+    await db.runAsync(
+      `INSERT INTO wallets (id, server_id, name, currency, balance, icon, color, is_active, pending_sync, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        serverWallet.id,
+        serverWallet.name,
+        serverWallet.currency,
+        serverWallet.balance,
+        serverWallet.icon,
+        serverWallet.color,
+        serverWallet.is_active ? 1 : 0,
+        0,
+        serverWallet.updated_at,
+      ],
+    );
+
+    return {
+      id,
+      serverId: serverWallet.id,
+      name: serverWallet.name,
+      currency: serverWallet.currency as Wallet['currency'],
+      balance: serverWallet.balance,
+      icon: serverWallet.icon,
+      color: serverWallet.color,
+      isActive: serverWallet.is_active,
+      pendingSync: false,
+      updatedAt: serverWallet.updated_at,
+    };
+  },
 };
 
 export const transactionQueries = {
@@ -273,6 +387,160 @@ export const transactionQueries = {
       [serverId, id],
     );
   },
+
+  async getByServerId(serverId: string): Promise<Transaction | null> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<TransactionRow>(
+      "SELECT * FROM transactions WHERE server_id = ?",
+      [serverId],
+    );
+    return row ? mapTransactionRowToTransaction(row) : null;
+  },
+
+  async getByClientId(clientId: string): Promise<Transaction | null> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<TransactionRow>(
+      "SELECT * FROM transactions WHERE id = ?",
+      [clientId],
+    );
+    return row ? mapTransactionRowToTransaction(row) : null;
+  },
+
+  async upsertFromServer(
+    serverTransaction: {
+      id: string;
+      client_id: string | null;
+      wallet_id: string;
+      category_id: string | null;
+      type: string;
+      amount: number;
+      currency: string;
+      original_amount: number | null;
+      exchange_rate: number | null;
+      rate_source: string | null;
+      description: string | null;
+      date: string;
+      updated_at: string;
+    },
+    localWalletId: string
+  ): Promise<Transaction> {
+    const db = await getDatabase();
+
+    if (serverTransaction.client_id) {
+      const existingByClientId = await this.getByClientId(serverTransaction.client_id);
+      if (existingByClientId) {
+        await db.runAsync(
+          `UPDATE transactions SET server_id = ?, wallet_id = ?, category_id = ?, type = ?, amount = ?, currency = ?, original_amount = ?, exchange_rate = ?, rate_source = ?, description = ?, date = ?, pending_sync = 0, updated_at = ? WHERE id = ?`,
+          [
+            serverTransaction.id,
+            localWalletId,
+            serverTransaction.category_id,
+            serverTransaction.type,
+            serverTransaction.amount,
+            serverTransaction.currency,
+            serverTransaction.original_amount,
+            serverTransaction.exchange_rate,
+            serverTransaction.rate_source,
+            serverTransaction.description,
+            serverTransaction.date,
+            serverTransaction.updated_at,
+            serverTransaction.client_id,
+          ],
+        );
+        return {
+          id: serverTransaction.client_id,
+          serverId: serverTransaction.id,
+          walletId: localWalletId,
+          categoryId: serverTransaction.category_id,
+          type: serverTransaction.type as Transaction['type'],
+          amount: serverTransaction.amount,
+          currency: serverTransaction.currency as Transaction['currency'],
+          originalAmount: serverTransaction.original_amount,
+          exchangeRate: serverTransaction.exchange_rate,
+          rateSource: serverTransaction.rate_source as Transaction['rateSource'],
+          description: serverTransaction.description,
+          date: serverTransaction.date,
+          pendingSync: false,
+          updatedAt: serverTransaction.updated_at,
+        };
+      }
+    }
+
+    const existing = await this.getByServerId(serverTransaction.id);
+    if (existing) {
+      await db.runAsync(
+        `UPDATE transactions SET wallet_id = ?, category_id = ?, type = ?, amount = ?, currency = ?, original_amount = ?, exchange_rate = ?, rate_source = ?, description = ?, date = ?, pending_sync = 0, updated_at = ? WHERE server_id = ?`,
+        [
+          localWalletId,
+          serverTransaction.category_id,
+          serverTransaction.type,
+          serverTransaction.amount,
+          serverTransaction.currency,
+          serverTransaction.original_amount,
+          serverTransaction.exchange_rate,
+          serverTransaction.rate_source,
+          serverTransaction.description,
+          serverTransaction.date,
+          serverTransaction.updated_at,
+          serverTransaction.id,
+        ],
+      );
+      return {
+        ...existing,
+        walletId: localWalletId,
+        categoryId: serverTransaction.category_id,
+        type: serverTransaction.type as Transaction['type'],
+        amount: serverTransaction.amount,
+        currency: serverTransaction.currency as Transaction['currency'],
+        originalAmount: serverTransaction.original_amount,
+        exchangeRate: serverTransaction.exchange_rate,
+        rateSource: serverTransaction.rate_source as Transaction['rateSource'],
+        description: serverTransaction.description,
+        date: serverTransaction.date,
+        pendingSync: false,
+        updatedAt: serverTransaction.updated_at,
+      };
+    }
+
+    const id = generateId();
+    await db.runAsync(
+      `INSERT INTO transactions (id, server_id, wallet_id, category_id, type, amount, currency, original_amount, exchange_rate, rate_source, description, date, pending_sync, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        serverTransaction.id,
+        localWalletId,
+        serverTransaction.category_id,
+        serverTransaction.type,
+        serverTransaction.amount,
+        serverTransaction.currency,
+        serverTransaction.original_amount,
+        serverTransaction.exchange_rate,
+        serverTransaction.rate_source,
+        serverTransaction.description,
+        serverTransaction.date,
+        0,
+        serverTransaction.updated_at,
+      ],
+    );
+
+    return {
+      id,
+      serverId: serverTransaction.id,
+      walletId: localWalletId,
+      categoryId: serverTransaction.category_id,
+      type: serverTransaction.type as Transaction['type'],
+      amount: serverTransaction.amount,
+      currency: serverTransaction.currency as Transaction['currency'],
+      originalAmount: serverTransaction.original_amount,
+      exchangeRate: serverTransaction.exchange_rate,
+      rateSource: serverTransaction.rate_source as Transaction['rateSource'],
+      description: serverTransaction.description,
+      date: serverTransaction.date,
+      pendingSync: false,
+      updatedAt: serverTransaction.updated_at,
+    };
+  },
 };
 
 async function updateWalletBalance(
@@ -373,5 +641,39 @@ export const syncQueries = {
       wallets: wallets?.count ?? 0,
       transactions: transactions?.count ?? 0,
     };
+  },
+
+  async getLastSyncTimestamp(): Promise<string | null> {
+    const db = await getDatabase();
+    const wallet = await db.getFirstAsync<{ updated_at: string }>(
+      "SELECT updated_at FROM wallets WHERE server_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
+    );
+    const transaction = await db.getFirstAsync<{ updated_at: string }>(
+      "SELECT updated_at FROM transactions WHERE server_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
+    );
+
+    if (!wallet && !transaction) return null;
+
+    const timestamps: string[] = [];
+    if (wallet?.updated_at) timestamps.push(wallet.updated_at);
+    if (transaction?.updated_at) timestamps.push(transaction.updated_at);
+
+    return timestamps.sort().pop() ?? null;
+  },
+
+  async getAllServerWalletIds(): Promise<string[]> {
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<{ server_id: string }>(
+      "SELECT server_id FROM wallets WHERE server_id IS NOT NULL",
+    );
+    return rows.map((r) => r.server_id);
+  },
+
+  async getAllServerTransactionIds(): Promise<string[]> {
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<{ server_id: string }>(
+      "SELECT server_id FROM transactions WHERE server_id IS NOT NULL",
+    );
+    return rows.map((r) => r.server_id);
   },
 };

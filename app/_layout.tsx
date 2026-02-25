@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -21,6 +21,10 @@ function RootLayoutNav() {
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
   }
 
   return (

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient as SupabaseClientType } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Database } from './database.types';
 
@@ -24,6 +24,19 @@ const ExpoSecureStoreAdapter = {
 };
 
 export const supabase = createClient<Database>(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      storage: ExpoSecureStoreAdapter,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
+);
+
+export const supabaseUntyped: SupabaseClientType = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
   {
