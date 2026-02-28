@@ -3,7 +3,8 @@
 ## 1. Language and Communication (STRICT RULE)
 
 - **Prompt Reception:** You must perfectly understand and accept instructions in both ENGLISH and SPANISH.
-- **Interaction/Output:** You MUST ALWAYS communicate, reason, explain, and plan your responses in SPANISH.
+- **Thinking Process:** You MUST internally reason, plan, and execute your chain-of-thought in ENGLISH to optimize token usage and processing speed.
+- **Interaction/Output:** The final explanation, communication, and response presented to the user MUST ALWAYS be in SPANISH.
 - **Source Code:** ALL source code (variables, functions, classes, filenames) MUST be written in ENGLISH.
 - **Comments:** All technical comments, docstrings, and in-code explanations MUST be in ENGLISH.
 - **Git:** Commit messages must follow the "Conventional Commits" standard in ENGLISH (e.g., `feat: add user login`).
