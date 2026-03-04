@@ -1,5 +1,4 @@
 import { createClient, SupabaseClient as SupabaseClientType } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
 import { Database } from './database.types';
 
 export type { Database };
@@ -11,16 +10,88 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key not configured. Using placeholder values.');
 }
 
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => {
-    return SecureStore.getItemAsync(key);
+const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
+
+const memoryStorage: Record<string, string> = {};
+
+const webStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
   },
-  setItem: (key: string, value: string) => {
-    return SecureStore.setItemAsync(key, value);
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Ignore errors
+    }
   },
-  removeItem: (key: string) => {
-    return SecureStore.deleteItemAsync(key);
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore errors
+    }
   },
+};
+
+const mobileStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    return memoryStorage[key] ?? null;
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    memoryStorage[key] = value;
+  },
+  removeItem: async (key: string): Promise<void> => {
+    delete memoryStorage[key];
+  },
+};
+
+const tryInitSecureStore = async () => {
+  if (isWeb) return null;
+  
+  try {
+    const SecureStore = require('expo-secure-store');
+    return {
+      getItem: (key: string) => SecureStore.getItemAsync(key),
+      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    };
+  } catch (e) {
+    console.warn('expo-secure-store not available, using fallback storage');
+    return null;
+  }
+};
+
+const initStorage = async () => {
+  if (isWeb) {
+    return webStorage;
+  }
+  
+  const secureStore = await tryInitSecureStore();
+  return secureStore ?? mobileStorage;
+};
+
+const storagePromise = initStorage();
+
+const getStorage = () => {
+  return {
+    getItem: async (key: string): Promise<string | null> => {
+      const storage = await storagePromise;
+      return storage.getItem(key);
+    },
+    setItem: async (key: string, value: string): Promise<void> => {
+      const storage = await storagePromise;
+      return storage.setItem(key, value);
+    },
+    removeItem: async (key: string): Promise<void> => {
+      const storage = await storagePromise;
+      return storage.removeItem(key);
+    },
+  };
 };
 
 export const supabase = createClient<Database>(
@@ -28,7 +99,7 @@ export const supabase = createClient<Database>(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      storage: ExpoSecureStoreAdapter,
+      storage: getStorage(),
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
@@ -41,7 +112,7 @@ export const supabaseUntyped: SupabaseClientType = createClient(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      storage: ExpoSecureStoreAdapter,
+      storage: getStorage(),
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

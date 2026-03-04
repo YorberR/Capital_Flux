@@ -1,50 +1,36 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, Redirect } from 'expo-router';
+import { Stack } from 'expo-router/stack';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { AuthProvider, useAuth } from '@/src/lib/auth-context';
-import { QueryProvider } from '@/src/lib/query-provider';
-import { ActivityIndicator, View } from 'react-native';
+import { useEffect } from 'react';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
-}
+// Prevent auto hide so we can manually control it
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 export default function RootLayout() {
+  // Hide splash screen immediately when root layout mounts
+  useEffect(() => {
+    const hideSplash = async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        // Ignored
+      }
+    };
+    hideSplash();
+  }, []);
+
   return (
-    <QueryProvider>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
-    </QueryProvider>
+    <>
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="transaction" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="wallets" />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      </Stack>
+      <StatusBar style="light" />
+    </>
   );
 }

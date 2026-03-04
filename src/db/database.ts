@@ -1,17 +1,39 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 
 const DATABASE_NAME = 'capital_flux.db';
 
 let db: SQLite.SQLiteDatabase | null = null;
+let dbInitError: string | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  // On web, SQLite is not supported
+  if (Platform.OS === 'web') {
+    throw new Error('SQLite is not supported on web. Please use the mobile app.');
+  }
+
+  if (dbInitError) {
+    throw new Error(`Database initialization failed previously: ${dbInitError}`);
+  }
+
   if (db) {
     return db;
   }
 
-  db = await SQLite.openDatabaseAsync(DATABASE_NAME);
-  await initializeDatabase(db);
-  return db;
+  try {
+    console.log('[DB] Opening database...');
+    db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+    console.log('[DB] Database opened. Initializing tables...');
+    await initializeDatabase(db);
+    console.log('[DB] Database initialized successfully.');
+    return db;
+  } catch (error) {
+    const message = (error as Error).message || 'Unknown database error';
+    console.error('[DB] Failed to initialize database:', message);
+    dbInitError = message;
+    db = null;
+    throw new Error(`Database initialization failed: ${message}`);
+  }
 }
 
 async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void> {

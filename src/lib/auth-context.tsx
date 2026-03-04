@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -18,16 +18,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    // Timeout to prevent infinite loading if Supabase is unreachable
+    const timeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Supabase session check timed out, proceeding without auth');
+        setSession(null);
+        setLoading(false);
+      }
+    }, 5000);
 
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (mounted) {
+          setSession(session);
+          setLoading(false);
+          clearTimeout(timeout);
+        }
+      })
+      .catch((error) => {
+        console.warn('Error getting session:', error);
+        if (mounted) {
+          setSession(null);
+          setLoading(false);
+          clearTimeout(timeout);
+        }
+      });
+
+    let subscription: { unsubscribe: () => void } | null = null;
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (mounted) setSession(session);
+      });
+      subscription = data.subscription;
+    } catch (error) {
+      console.warn('Error setting up auth listener:', error);
+    }
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
