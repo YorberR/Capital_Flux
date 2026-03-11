@@ -3,12 +3,14 @@
 Digital wallet designed for volatile economies such as Venezuela's, with multi-currency support, real-time exchange rates (official BCV, parallel, USDT P2P), and a polished mobile-first UI.
 
 > [!IMPORTANT]
-> Plan revised on 2026-03-04. Offline-first sync has been **deferred** to a later phase. The priority is a fully functional, visually polished mobile app with demo data first, then real API integration.
+> Plan revised on 2026-03-10. Architecture pivot: **Supabase cloud-first** replaces the offline-first SQLite approach.
+> Auth (Login/Register) + Supabase CRUD is now the foundation. SQLite sync is deferred indefinitely.
 
 > [!NOTE]
 > **Progress Status:**
 > - ✅ Phase 1 — Foundation: COMPLETED
-> - ⚠️ Phase 2 — Offline-First: DEFERRED (code exists in `src/db/`, `src/features/sync/` but is not active)
+> - 🔄 Phase 2 — Auth + Supabase DB: IN PROGRESS (Auth screen done, wallet/transaction stores done)
+> - ⏸️ Phase 2b — Offline-First SQLite: DEFERRED (code kept in `src/db/` for future reference)
 > - 🔄 Phase 3 — UI/UX: IN PROGRESS
 > - 📋 Phase 4 — Exchange Rate Engine: PENDING
 > - 📋 Phase 5 — Security: PENDING
@@ -33,14 +35,19 @@ The Android build compiles successfully with:
 - ✅ Special components exist: `RateSelector`, `DualAmountDisplay`, `SyncStatusBar`, `OfflineBadge`
 
 ### What Doesn't Work / Is Missing
-- ❌ App shows loading spinner instead of UI content on emulator (JS-side issue, not build)
+- ✅ App loading spinner fixed (previous work)
+- ✅ Auth guard in root layout (redirects to login if unauthenticated)
+- ✅ Login/Register screen implemented
+- ✅ wallet-store.ts with Supabase CRUD
+- ✅ transaction-store.ts with Supabase CRUD + balance update
+- ✅ Dashboard connected to real Supabase data
+- ❌ wallets/new.tsx and transaction/new.tsx still use old form logic (needs store integration)
 - ❌ Screens use inline color definitions instead of shared `theme.ts`
 - ❌ No Reanimated animations active
 - ❌ No haptic feedback on actions
 - ❌ Special components are not integrated into screens
 - ❌ `CurrencyReconversion` component missing
-- ❌ `expo-sqlite` not called at runtime (deferred)
-- ❌ No Supabase integration active
+- ❌ Exchange rate data is hardcoded (Phase 4)
 
 ---
 

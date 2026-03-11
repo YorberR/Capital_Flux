@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, DefaultCategories, FontSizes, Spacing } from '../../src/constants/theme';
 import { useTheme } from '../../src/hooks/use-theme';
 
@@ -12,6 +13,7 @@ const WALLETS = [
 
 export default function NewTransactionScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ type?: string; walletId?: string }>();
   const type = (params.type as 'income' | 'expense') || 'expense';
 
@@ -58,7 +60,7 @@ export default function NewTransactionScreen() {
 
       <ScrollView
         style={{ flex: 1, paddingHorizontal: Spacing.xl }}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >

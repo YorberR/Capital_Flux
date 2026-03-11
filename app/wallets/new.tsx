@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, FontSizes, Spacing } from '../../src/constants/theme';
 import { useTheme } from '../../src/hooks/use-theme';
 
@@ -17,6 +18,7 @@ const walletColors = ['#4F46E5', '#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3
 
 export default function NewWalletScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
@@ -49,7 +51,7 @@ export default function NewWalletScreen() {
 
       <ScrollView
         style={{ flex: 1, paddingHorizontal: Spacing.xl }}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
