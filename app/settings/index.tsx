@@ -1,8 +1,12 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, FontSizes, Spacing } from '../../src/constants/theme';
 import { useTheme } from '../../src/hooks/use-theme';
+import { useAuth } from '../../src/lib/auth-context';
+
+// ─── SettingItem ─────────────────────────────────────────────────────────────
 
 interface SettingItemProps {
   icon: string;
@@ -18,12 +22,13 @@ function SettingItem({ icon, title, subtitle, onPress, rightElement, isDestructi
 
   return (
     <Pressable
-      style={{
+      style={({pressed}) => ({
         flexDirection: 'row', alignItems: 'center',
         padding: Spacing.lg, borderRadius: BorderRadius.lg, marginBottom: Spacing.sm,
-        backgroundColor: colors.backgroundSecondary, gap: Spacing.md,
+        backgroundColor: pressed && onPress ? colors.backgroundTertiary : colors.backgroundSecondary,
+        gap: Spacing.md,
         borderCurve: 'continuous',
-      }}
+      })}
       onPress={onPress}
       disabled={!onPress && !rightElement}
     >
@@ -50,6 +55,8 @@ function SettingItem({ icon, title, subtitle, onPress, rightElement, isDestructi
   );
 }
 
+// ─── SectionHeader ────────────────────────────────────────────────────────────
+
 function SectionHeader({ title }: { title: string }) {
   const { colors } = useTheme();
   return (
@@ -63,10 +70,39 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
 export default function SettingsScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, toggle } = useTheme();
+  const { signOut, user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [biometrics, setBiometrics] = useState(false);
   const [notifications, setNotifications] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro que deseas salir de tu cuenta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar Sesión',
+          style: 'destructive',
+          onPress: async () => {
+            setSigningOut(true);
+            try {
+              await signOut();
+              // AuthGuard in _layout.tsx will redirect to login automatically
+            } catch {
+              Alert.alert('Error', 'No se pudo cerrar la sesión. Intenta de nuevo.');
+              setSigningOut(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -85,14 +121,43 @@ export default function SettingsScreen() {
 
       <ScrollView
         style={{ flex: 1, paddingHorizontal: Spacing.xl }}
-        contentContainerStyle={{ paddingBottom: 60 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
+        {/* User email mini card */}
+        {user?.email && (
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+            padding: Spacing.lg, borderRadius: BorderRadius.xl,
+            backgroundColor: colors.brandPrimary + '12',
+            marginBottom: Spacing.md,
+            borderCurve: 'continuous',
+          }}>
+            <View style={{
+              width: 44, height: 44, borderRadius: 22,
+              backgroundColor: colors.brandPrimary,
+              justifyContent: 'center', alignItems: 'center',
+            }}>
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: FontSizes.body }}>
+                {user.email.slice(0, 2).toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: FontSizes.body }}>
+                {user.email.split('@')[0]}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: FontSizes.caption }}>
+                {user.email}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <SectionHeader title="Cuenta" />
         <SettingItem
-          icon="👤" title="Perfil" subtitle="Gestionar datos del usuario"
-          onPress={() => Alert.alert('Perfil', 'Función en desarrollo')}
+          icon="👤" title="Perfil" subtitle="Ver mis datos de cuenta"
+          onPress={() => router.push('/settings/profile' as any)}
         />
         <SettingItem
           icon="💳" title="Mis Billeteras" subtitle="Administrar cuentas"
@@ -101,12 +166,14 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Apariencia" />
         <SettingItem
-          icon="🌙" title="Modo Oscuro" subtitle="El tema se adapta al sistema"
+          icon={isDark ? '🌙' : '☀️'}
+          title="Modo Oscuro"
+          subtitle={isDark ? 'Activo' : 'Inactivo'}
           rightElement={
             <Switch
               value={isDark}
-              disabled={true}
-              trackColor={{ false: colors.border, true: colors.brandPrimary + '50' }}
+              onValueChange={toggle}
+              trackColor={{ false: colors.border, true: colors.brandPrimary + '80' }}
               thumbColor={isDark ? colors.brandPrimary : colors.textMuted}
             />
           }
@@ -118,7 +185,7 @@ export default function SettingsScreen() {
           rightElement={
             <Switch
               value={biometrics} onValueChange={setBiometrics}
-              trackColor={{ false: colors.border, true: colors.brandPrimary + '50' }}
+              trackColor={{ false: colors.border, true: colors.brandPrimary + '80' }}
               thumbColor={biometrics ? colors.brandPrimary : colors.textMuted}
             />
           }
@@ -128,23 +195,24 @@ export default function SettingsScreen() {
           rightElement={
             <Switch
               value={notifications} onValueChange={setNotifications}
-              trackColor={{ false: colors.border, true: colors.brandPrimary + '50' }}
+              trackColor={{ false: colors.border, true: colors.brandPrimary + '80' }}
               thumbColor={notifications ? colors.brandPrimary : colors.textMuted}
             />
           }
         />
         <SettingItem
           icon="📊" title="Tasa Predeterminada" subtitle="BCV Oficial"
-          onPress={() => Alert.alert('Tasa', 'Función en desarrollo')}
+          onPress={() => Alert.alert('Tasa', 'Función próximamente')}
         />
 
         <SectionHeader title="General" />
+        <SettingItem icon="ℹ️" title="Versión" subtitle="1.0.0 (Beta)" />
+
         <SettingItem
-          icon="ℹ️" title="Versión" subtitle="1.0.0 (Demo)"
-        />
-        <SettingItem
-          icon="🚪" title="Cerrar Sesión" isDestructive
-          onPress={() => Alert.alert('Cerrar Sesión', '¿Estás seguro?')}
+          icon="🚪"
+          title={signingOut ? 'Cerrando sesión…' : 'Cerrar Sesión'}
+          isDestructive
+          onPress={signingOut ? undefined : handleSignOut}
         />
 
         <View style={{ alignItems: 'center', marginTop: Spacing.xxxl }}>

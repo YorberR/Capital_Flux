@@ -1,5 +1,4 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,8 +12,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useAuth } from '../../src/lib/auth-context';
 import { BorderRadius, Colors, FontSizes, Spacing } from '../../src/constants/theme';
+import { useAuth } from '../../src/lib/auth-context';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -50,9 +49,20 @@ export default function LoginScreen() {
       return;
     }
 
-    if (passwordTrimmed.length < 6) {
-      Alert.alert('Contraseña corta', 'La contraseña debe tener al menos 6 caracteres.');
-      return;
+    const passError = (passwordTrimmed: string) => {
+      if (passwordTrimmed.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+      if (!/[A-Z]/.test(passwordTrimmed)) return 'Debe incluir al menos una letra mayúscula.';
+      if (!/[0-9]/.test(passwordTrimmed)) return 'Debe incluir al menos un número.';
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(passwordTrimmed)) return 'Debe incluir al menos un carácter especial.';
+      return null;
+    };
+
+    if (isRegister) {
+      const errorMsg = passError(passwordTrimmed);
+      if (errorMsg) {
+        Alert.alert('Contraseña débil', errorMsg);
+        return;
+      }
     }
 
     setLoading(true);

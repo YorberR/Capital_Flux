@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '../src/lib/auth-context';
+import { ThemeProvider } from '../src/lib/theme-context';
 import { useWalletStore } from '../src/store/wallet-store';
 import { useTransactionStore } from '../src/store/transaction-store';
 
@@ -110,9 +111,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
