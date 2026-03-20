@@ -4,6 +4,8 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, FontSizes, Spacing } from '../../src/constants/theme';
 import { useTheme } from '../../src/hooks/use-theme';
+import { useAuth } from '../../src/lib/auth-context';
+import { useWalletStore } from '../../src/store/wallet-store';
 
 type Currency = 'USD' | 'VES' | 'EUR' | 'COP';
 
@@ -19,19 +21,51 @@ const walletColors = ['#4F46E5', '#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3
 export default function NewWalletScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const createWallet = useWalletStore((state) => state.createWallet);
 
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
   const [balance, setBalance] = useState('0');
   const [selectedColor, setSelectedColor] = useState(walletColors[0]);
 
-  const handleCreate = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCreate = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Por favor ingresa un nombre para la billetera');
       return;
     }
-    Alert.alert('Éxito', 'Billetera creada (modo demo)');
-    router.back();
+    if (!user) {
+      Alert.alert('Error', 'Debes iniciar sesión para crear una billetera');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const parsedBalance = parseFloat(balance.replace(',', '.'));
+    
+    try {
+      const newWallet = await createWallet(
+        {
+          name: name.trim(),
+          currency,
+          balance: isNaN(parsedBalance) ? 0 : parsedBalance,
+          color: selectedColor,
+        },
+        user.id
+      );
+
+      if (newWallet) {
+        Alert.alert('Éxito', 'Billetera creada correctamente');
+        router.back();
+      } else {
+        Alert.alert('Error', 'No se pudo crear la billetera');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Ocurrió un error inesperado al crear la billetera');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -164,14 +198,15 @@ export default function NewWalletScreen() {
         {/* Submit */}
         <Pressable
           style={{
-            backgroundColor: colors.brandPrimary, padding: Spacing.lg, borderRadius: BorderRadius.md,
+            backgroundColor: isSubmitting ? colors.textMuted : colors.brandPrimary, padding: Spacing.lg, borderRadius: BorderRadius.md,
             alignItems: 'center', marginTop: Spacing.xl,
             borderCurve: 'continuous',
           }}
           onPress={handleCreate}
+          disabled={isSubmitting}
         >
           <Text style={{ color: '#FFFFFF', fontSize: FontSizes.body, fontWeight: '600' }}>
-            Crear Billetera
+            {isSubmitting ? 'Creando...' : 'Crear Billetera'}
           </Text>
         </Pressable>
       </ScrollView>

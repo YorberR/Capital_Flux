@@ -10,28 +10,37 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key not configured. Using placeholder values.');
 }
 
-const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
+import { Platform } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 
 const memoryStorage: Record<string, string> = {};
 
 const webStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
-      return localStorage.getItem(key);
+      if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+      return null;
     } catch {
       return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      localStorage.setItem(key, value);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+      }
     } catch {
       // Ignore errors
     }
   },
   removeItem: async (key: string): Promise<void> => {
     try {
-      localStorage.removeItem(key);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
     } catch {
       // Ignore errors
     }
